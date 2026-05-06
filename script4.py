@@ -28,7 +28,7 @@ def Start(run):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 print("h0")
                 # War der Klick auf dem Text-Rechteck?
-                if Text_n2.collidepoint(event.pos):
+                if rect_2normal.collidepoint(event.pos):
                     print(maus_pos)
 
 
