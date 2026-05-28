@@ -1,0 +1,1 @@
+Hallo Enton, dein Programmierprojekt befindet sich unter dem Pfad /game-engine/game/offline/main.py. Du kannst das Spiel ganz einfach über die start.py starten. Ich habe mich gerade vorallem auf die Logik konzentriert und die Grafik vernachlässigt... Das kannst du später noch fixen.
