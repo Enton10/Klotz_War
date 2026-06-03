@@ -1,3 +1,4 @@
+from operator import le
 import random, math, pygame
 
 SCREEN_W, SCREEN_H = 1900, 1000
@@ -7,12 +8,13 @@ screen = clock = font_big = font_mid = font_small = CTX = None
 
 
 class Snake:
-    def __init__(self, name, start_pos, color, controls, size=20):
+    def __init__(self, name, start_pos, color, controls, level = 0, size=20):
         self.name = name
         self.color = color
         self.base_color = color
         self.size = size
         self.controls = controls
+        self.level = level
         self.rect = pygame.Rect(start_pos[0], start_pos[1], size, size)
         self.speed = 5
         self.trail = []
@@ -158,6 +160,7 @@ def menu():
     title = font_big.render("Willkommen", True, (255, 255, 255))
     subtitle = font_small.render("Wähle die Anzahl der Spieler", True,
                                  (200, 200, 200))
+    btn1 = Button((SCREEN_W // 2 - 200, 350, 400, 90), "1 Spieler")
     btn2 = Button((SCREEN_W // 2 - 200, 450, 400, 90), "2 Spieler")
     btn3 = Button((SCREEN_W // 2 - 200, 580, 400, 90), "3 Spieler")
     btn_quit = Button((SCREEN_W // 2 - 200, 710, 400, 90), "Beenden",
@@ -176,6 +179,8 @@ def menu():
                 return None
             if event.type == pygame.MOUSEBUTTONDOWN:
                 p = CTX.map(event.pos)
+                if btn1.clicked(p):
+                    return 1                
                 if btn2.clicked(p):
                     return 2
                 if btn3.clicked(p):
@@ -183,6 +188,8 @@ def menu():
                 if btn_quit.clicked(p):
                     return None
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    return 1                
                 if event.key == pygame.K_2:
                     return 2
                 if event.key == pygame.K_3:
@@ -193,6 +200,7 @@ def menu():
         _grid()
         screen.blit(title, title.get_rect(center=(SCREEN_W // 2, 200)))
         screen.blit(subtitle, subtitle.get_rect(center=(SCREEN_W // 2, 320)))
+        btn1.draw(screen, mouse_pos)
         btn2.draw(screen, mouse_pos)
         btn3.draw(screen, mouse_pos)
         btn_quit.draw(screen, mouse_pos)
@@ -232,14 +240,16 @@ def winner_screen(winner_name, winner_color):
 
 def play_game(num_players):
     snakes = []
-    snakes.append(Snake(
-        "Spieler 1 (Blau)", (SCREEN_W - 100, SCREEN_H - 100), (60, 120, 255),
-        {"up": pygame.K_UP, "down": pygame.K_DOWN,
-         "left": pygame.K_LEFT, "right": pygame.K_RIGHT}))
-    snakes.append(Snake(
-        "Spieler 2 (Grün)", (50, 50), (60, 220, 90),
-        {"up": pygame.K_w, "down": pygame.K_s,
-         "left": pygame.K_a, "right": pygame.K_d}))
+    if num_players >= 1:
+        snakes.append(Snake(
+            "Spieler 1 (Blau)", (SCREEN_W - 100, SCREEN_H - 100), (60, 120, 255),
+            {"up": pygame.K_UP, "down": pygame.K_DOWN,
+            "left": pygame.K_LEFT, "right": pygame.K_RIGHT}))
+    if num_players >= 2:
+        snakes.append(Snake(
+            "Spieler 2 (Grün)", (50, 50), (60, 220, 90),
+            {"up": pygame.K_w, "down": pygame.K_s,
+            "left": pygame.K_a, "right": pygame.K_d}))
     if num_players >= 3:
         snakes.append(Snake(
             "Spieler 3 (Gelb)", (SCREEN_W // 2, SCREEN_H // 2), (240, 220, 60),
@@ -249,6 +259,7 @@ def play_game(num_players):
     wechsler = Wechsler()
     winner = None
     running = True
+    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -266,10 +277,12 @@ def play_game(num_players):
             for s in snakes:
                 if s.alive and not s.dying and \
                         s.rect.colliderect(wechsler.rect):
+                    
                     if random.randint(1, 2) == 1:
                         s.speed += 1
                     else:
                         s.grow(1.2)
+                    s.level += 1
                     wechsler.consume()
                     break
 
@@ -279,11 +292,14 @@ def play_game(num_players):
                 a = alive_snakes[i]
                 b = alive_snakes[j]
                 if a.collides_with(b):
-                    total = a.size + b.size
-                    if random.random() < a.size / total:
+                   # total = a.size + b.size
+                    if a.level > b.level:
                         loser, winner_snake = b, a
-                    else:
+                    elif a.level < b.level:
                         loser, winner_snake = a, b
+                    else:
+                        break
+                    
                     loser.start_death()
                     winner_snake.grow(1.5)
                     print(f"{winner_snake.name} hat {loser.name} besiegt!")
@@ -297,9 +313,10 @@ def play_game(num_players):
 
         living = [s for s in snakes if s.alive]
         dying_now = [s for s in snakes if s.dying]
-        if len(living) <= 1 and not dying_now:
-            winner = living[0] if living else None
-            running = False
+        if num_players != 1:
+            if len(living) <= 1 and not dying_now:
+                winner = living[0] if living else None
+                running = False
 
         _grid()
         wechsler.draw(screen)
@@ -308,7 +325,7 @@ def play_game(num_players):
         for idx, s in enumerate(snakes):
             status = "TOT" if not s.alive and not s.dying \
                 else f"Größe {s.size}"
-            txt = font_small.render(f"{s.name}: {status}", True, s.base_color)
+            txt = font_small.render(f"{s.name}: {status}  Level: {s.level}", True, s.base_color)
             screen.blit(txt, (20, 20 + idx * 32))
 
         CTX.present()
