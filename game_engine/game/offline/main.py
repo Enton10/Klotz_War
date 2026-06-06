@@ -2,15 +2,17 @@ from operator import le
 import random, math, pygame
 from random import choice
 
+from pygame import rect
+
 SCREEN_W, SCREEN_H = 1900, 1000
 BG_COLOR = (15, 15, 30)
 
 screen = clock = font_big = font_mid = font_small = CTX = None
 
-
+count_for_be = 0
 
 class Snake:
-    def __init__(self, name, start_pos, color, eyes_color, controls, level=0, size=20):
+    def __init__(self, name, start_pos, color, eyes_color, controls, level=0, size=20, savecount= 0):
         self.name = name
         self.color = color
         self.eyes_color = eyes_color
@@ -21,11 +23,12 @@ class Snake:
         self.rect = pygame.Rect(start_pos[0], start_pos[1], size, size)
         self.speed = 5
         self.trail = []
-        self.max_trail = 5
+        self.max_trail = 18
         self.alive = True
         self.dying = False
         self.death_timer = 0
         self.death_max = 50
+        self.savecount = savecount
 
     def handle_input(self, keys):
         if not self.alive or self.dying:
@@ -102,6 +105,34 @@ class Snake:
         dy = self.rect.centery - other.rect.centery
         return math.hypot(dx, dy) < (self.size + other.size) / 2
 
+
+class Save_zone:
+    def __init__(self, name, color, size):
+        self.name = name
+        self.color = color
+        self.size = size
+        self.zone = pygame.Surface(size, pygame.SRCALPHA)
+        self.be = False
+        self.count_for_be = 0
+
+        # Zufällige Position berechnen
+        pos_x = random.randint(0, SCREEN_W - size[0])
+        pos_y = random.randint(0, SCREEN_H - size[1])
+
+        # NEU: Ein echtes Rect-Objekt an der richtigen Position erstellen!
+        self.rect = pygame.Rect(pos_x, pos_y, size[0], size[1])
+
+    def draw_savezone(self, surface):
+        if self.be == False:
+            self.count_for_be += 1
+            if self.count_for_be > 110:
+                self.be = True
+                self.count_for_be = 0
+
+        if self.be == True:
+            self.zone.fill((self.color[0], self.color[1], self.color[2], 100))
+            # HIER GEÄNDERT: Wir übergeben das self.rect statt der einzelnen Koordinaten
+            surface.blit(self.zone, self.rect)
 
 class Button:
     def __init__(self, rect, text, color=(60, 120, 200), hover=(90, 160, 240)):
@@ -284,15 +315,21 @@ def winner_screen(winner_name, winner_color, snakes, Gamemode):
                     return True
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_again.clicked(CTX.map(event.pos)):
-
-
-
-                    if len(snakes) == 2:
-                        return play_game(num_players=2, Gamemode = "Normal")
-                    if len(snakes) == 3:
-                        return play_game(num_players=3, Gamemode = "Normal")
-
-
+                    if Gamemode == "Normal":
+                        if len(snakes) == 2:
+                            return play_game(num_players=2, Gamemode="Normal", surface=screen)
+                        if len(snakes) == 3:
+                            return play_game(num_players=3, Gamemode="Normal", surface=screen)
+                    if Gamemode == "1 vs. 2":
+                        if len(snakes) == 2:
+                            return play_game(num_players=2, Gamemode="1 vs. 2", surface=screen)
+                        if len(snakes) == 3:
+                            return play_game(num_players=3, Gamemode="1 vs. 2", surface=screen)
+                    else:
+                        if len(snakes) == 2:
+                            return play_game(num_players=2, Gamemode="Normal", surface=screen)
+                        if len(snakes) == 3:
+                            return play_game(num_players=3, Gamemode="Normal", surface=screen)
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -301,19 +338,19 @@ def winner_screen(winner_name, winner_color, snakes, Gamemode):
 
                     if Gamemode == "Normal":
                         if len(snakes) == 2:
-                            return play_game(num_players=2, Gamemode="Normal")
+                            return play_game(num_players=2, Gamemode="Normal", surface=screen)
                         if len(snakes) == 3:
-                            return play_game(num_players=3, Gamemode="Normal")
+                            return play_game(num_players=3, Gamemode="Normal", surface=screen)
                     if Gamemode == "1 vs. 2":
                         if len(snakes) == 2:
-                            return play_game(num_players=2, Gamemode="1 vs. 2")
+                            return play_game(num_players=2, Gamemode="1 vs. 2", surface=screen)
                         if len(snakes) == 3:
-                            return play_game(num_players=3, Gamemode="1 vs. 2")
+                            return play_game(num_players=3, Gamemode="1 vs. 2", surface=screen)
                     else:
                         if len(snakes) == 2:
-                            return play_game(num_players=2, Gamemode="Normal")
+                            return play_game(num_players=2, Gamemode="Normal", surface=screen)
                         if len(snakes) == 3:
-                            return play_game(num_players=3, Gamemode="Normal")
+                            return play_game(num_players=3, Gamemode="Normal", surface=screen)
         _grid()
         title = font_big.render("🏆 Gewinner!", True, (255, 215, 0))
         screen.blit(title, title.get_rect(center=(SCREEN_W // 2, 300)))
@@ -326,7 +363,7 @@ def winner_screen(winner_name, winner_color, snakes, Gamemode):
         CTX.present()
         clock.tick(60)
 
-def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funktion ist
+def play_game(num_players, Gamemode, surface):  # self entfernt, da es eine normale Funktion ist
         if Gamemode == "Normal":
             eyes_color_1 = (255, 255, 255)
             eyes_color_2 = (255, 255, 255)
@@ -353,6 +390,7 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
             print(Gamemode)
 
         snakes = []
+        save_snakes = []
         if num_players >= 1:
             snakes.append(Snake(
                 "Spieler 1", (SCREEN_W - 100, SCREEN_H - 100), Normal_color_1, eyes_color_1,
@@ -368,7 +406,14 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
                 "Spieler 3", (SCREEN_W // 2, SCREEN_H // 2), Normal_color_3, eyes_color_3,
                 {"up": pygame.K_i, "down": pygame.K_k,
                  "left": pygame.K_j, "right": pygame.K_l}))
+        save_zones = []
+        save_zones.append(Save_zone(
+            "Zone1", (200, 200, 200), (40, 40),
+        ))
 
+        start_pos_x = random.randint(0, SCREEN_W)
+        start_pos_y = random.randint(0, SCREEN_H)
+        count_save = 0
         wechsler = Wechsler()
         winner = None
         running = True
@@ -379,6 +424,9 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
                     return False
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return True
+
+            zone_width = surface.get_width()
+            zone_height = surface.get_height()
 
             keys = pygame.key.get_pressed()
             for s in snakes:
@@ -391,16 +439,9 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
                     if s.alive and not s.dying and s.rect.colliderect(wechsler.rect):
                         if random.randint(1, 2) == 1:
                             s.speed += 1
-                            s.max_trail = s.speed * 2
-                            new_speed = s.speed
                         else:
                             s.grow(1.2)
-
-
-
-
                         s.level += 1
-
                         wechsler.consume()
                         break
 
@@ -419,17 +460,53 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
 
                         # Wer gewinnt den Kampf?
                         if a.level > b.level:
+                            if b in save_snakes:
+                                continue
                             loser, winner_snake = b, a
                         elif a.level < b.level:
+                            if a in save_snakes:
+                                continue
                             loser, winner_snake = a, b
                         else:
                             # Bei Gleichstand sterben entweder beide, oder es passiert nichts.
                             # Hier gelöst: Beide prallen ab (keiner stirbt), um Softlocks zu verhindern.
                             continue
 
+
+
                         loser.start_death()
                         winner_snake.grow(3.5)  # 2.5 war extrem riesig, 1.5 passt besser zum Screen
                         print(f"{winner_snake.name} hat {loser.name} besiegt!")
+                        # --- CODE-ABSCHNITT FÜR DIE SAVE-ZONES (MAX. 40 FRAMES SCHUTZ) ---
+
+            for v in save_zones:
+                if v.be:  # Nur wenn die Zone aktiv/sichtbar ist
+                    for q in alive_snakes:
+                        if v.rect.collidepoint(q.rect.center):
+
+                            # Wenn sie frisch reinkommt und ihr Timer noch nicht abgelaufen ist (> 40)
+                            if q.savecount < 40:
+                                if q not in save_snakes:
+                                    save_snakes.append(q)
+                                    print(
+                                        f"🛡️ {q.name} hat die Zone betreten und ist kurzzeitig geschützt!")
+
+                                # Timer läuft, solange sie in der Zone steht
+                                q.savecount += 1
+
+                            # Sobald die 40 Frames Schutz abgelaufen sind:
+                            elif q.savecount >= 40:
+                                if q in save_snakes:
+                                    save_snakes.remove(q)
+                                    print(f"⏳ Schutzzeit abgelaufen! {q.name} ist wieder verwundbar!")
+
+                        else:
+                            # Wenn die Schlange die Zone verlässt, wird ihr Timer komplett zurückgesetzt.
+                            # So bekommt sie wieder Schutz, wenn sie das nächste Mal reinfährt.
+                            if q.savecount > 0 and q not in save_snakes:
+                                q.savecount = 0
+                                print(f"🔄 {q.name} hat die Zone verlassen. Timer zurückgesetzt.")
+
 
             for s in snakes:
                 if s.dying:
@@ -450,7 +527,7 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
                 if len(dying_now) != 0:
                     if dying_now[0].name == "Spieler 1":
                         winner_team = "Team Blau"
-                        return winner_screen(winner_team, Normal_color_2, snakes)
+                        return winner_screen(winner_team, Normal_color_2, snakes, Gamemode)
             else:
                 # Für Einzelspieler: Spiel läuft einfach weiter, bis man ESC drückt
                 if len(living) == 0 and not dying_now:
@@ -460,6 +537,8 @@ def play_game(num_players, Gamemode):  # self entfernt, da es eine normale Funkt
             wechsler.draw(screen)
             for s in snakes:
                 s.draw(screen)
+            for z in save_zones:
+                z.draw_savezone(surface=screen)
 
             for idx, s in enumerate(snakes):
                 status = "TOT" if not s.alive and not s.dying else f"Größe {s.size}"
@@ -487,7 +566,7 @@ def main(ctx):
             return Gamemode
 
 
-        if not play_game(choice, Gamemode):
+        if not play_game(choice, Gamemode, surface = screen):
             return Gamemode
 
 
@@ -514,6 +593,7 @@ class _DevCtx:
 if __name__ == "__main__":
     main(_DevCtx())
     pygame.quit()
+
 
 
 
